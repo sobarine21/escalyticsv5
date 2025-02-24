@@ -249,7 +249,7 @@ if (email_content or uploaded_file) and st.button("🔍 Generate Insights"):
 
                     # Question Answering
                     question = st.text_input("Ask a question about the email content:")
-                    future_question_answering = executor.submit(get_ai_response, f"Answer this question based on the email content: {question}\n\n", email_content) if question and features["question_answering"] else None
+                    future_question_answering = executor.submit(get_ai_response, f"Answer this question based on the email content:\n\n{email_content}\n\nQuestion: {question}\nAnswer:", email_content) if question and features["question_answering"] else None
 
                     # Argument Mining
                     future_argument_mining = executor.submit(get_ai_response, "Analyze the arguments presented in this email:\n\n", email_content) if features["argument_mining"] else None

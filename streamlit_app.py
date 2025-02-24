@@ -3,13 +3,10 @@ import google.generativeai as genai
 from langdetect import detect
 from textblob import TextBlob
 from fpdf import FPDF
-from io import BytesIO
-import concurrent.futures
 import json
 import docx2txt
 from PyPDF2 import PdfReader
 import re
-import base64
 from cryptography.fernet import Fernet
 import email
 from email import policy
@@ -337,6 +334,10 @@ async def process_email_async(email_content, uploaded_file, selected_scenario):
 
                 pdf_data = export_pdf(json.dumps(export_data, indent=4))
                 st.download_button("📥 Download PDF", data=pdf_data, file_name="analysis.pdf", mime="application/pdf")
+
+# Define the request queue
+request_queue = Queue()
+processing_time_per_request = 30  # Average processing time in seconds
 
 # Start processing queue in a separate thread
 def process_queue():

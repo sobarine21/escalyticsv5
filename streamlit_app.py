@@ -154,7 +154,7 @@ def analyze_phishing_links(email_content):
     urls = re.findall(r'(https?://\S+)', email_content)
     for url in urls:
         for keyword in phishing_keywords:
-            if keyword.lower() in url.lower():
+            if keyword.lower() in url.lower()):
                 phishing_links.append(url)
     return phishing_links
 
@@ -358,6 +358,15 @@ def process_queue():
             request_queue.task_done()
         time.sleep(1)
 
+def update_eta(eta_placeholder, eta):
+    while eta > 0:
+        mins, secs = divmod(eta, 60)
+        eta_str = f"Estimated wait time: {mins:02d}:{secs:02d} minutes"
+        eta_placeholder.text(eta_str)
+        time.sleep(1)
+        eta -= 1
+    eta_placeholder.text("Processing your request...")
+
 threading.Thread(target=process_queue, daemon=True).start()
 
 # Add request to queue when button clicked
@@ -366,7 +375,8 @@ if (email_content or uploaded_file) and st.button("🔍 Generate Insights"):
     queue_size = request_queue.qsize()
     if queue_size > 1:
         eta = (queue_size - 1) * processing_time_per_request
-        st.info(f"⏳ Your request is in the queue. Estimated wait time: {eta} seconds.")
+        eta_placeholder = st.empty()
+        threading.Thread(target=update_eta, args=(eta_placeholder, eta), daemon=True).start()
     else:
         st.info("⚡ Your request is being processed.")
 else:

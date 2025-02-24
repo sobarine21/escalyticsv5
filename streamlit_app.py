@@ -388,7 +388,13 @@ threading.Thread(target=process_queue, daemon=True).start()
 if (email_content or uploaded_file) and st.button("🔍 Generate Insights"):
     request_queue.put((email_content, uploaded_file, selected_scenario))
     queue_size = request_queue.qsize()
-    eta = queue_size * processing_time_per_request
-    st.info(f"⏳ Your request is in the queue. Estimated wait time: {eta} seconds.")
+    if queue_size > 1:
+        eta = (queue_size - 1) * processing_time_per_request
+        st.info(f"⏳ Your request is in the queue. Estimated wait time: {eta} seconds.")
+    else:
+        st.info("⚡ Your request is being processed.")
 else:
     st.info("✏️ Paste email content and click 'Generate Insights' to begin.")
+````
+
+In this updated version, the ETA is only shown if there are other requests in the queue. If the queue size is 1 (meaning there are no other requests), it informs the user that their request is being processed immediately.

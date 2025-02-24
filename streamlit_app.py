@@ -190,9 +190,10 @@ def analyze_attachment(file):
         return f"Error analyzing attachment: {e}"
 
 def countdown_timer(duration):
-    for i in range(duration, 0, -1):
-        st.write(f"Processing... {i}s remaining")
-        time.sleep(1)
+    with st.spinner("Processing..."):
+        for i in range(duration, 0, -1):
+            st.write(f"⏳ {i} seconds remaining...")
+            time.sleep(1)
 
 if (email_content or uploaded_file) and st.button("🔍 Generate Insights"):
     try:

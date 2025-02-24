@@ -1,6 +1,7 @@
 import streamlit as st
 import google.generativeai as genai
 from langdetect import detect
+from langdetect.lang_detect_exception import LangDetectException
 from textblob import TextBlob
 from fpdf import FPDF
 import json
@@ -211,7 +212,16 @@ async def async_get_ai_response(prompt, email_content):
 
 # Asynchronous Email Processing
 async def process_email_async(email_content, uploaded_file, selected_scenario):
-    detected_lang = detect(email_content)
+    if not email_content.strip():
+        st.warning("⚠️ Email content is empty. Please provide valid email content.")
+        return
+
+    try:
+        detected_lang = detect(email_content)
+    except LangDetectException:
+        st.warning("⚠️ Unable to detect language. Please provide more content.")
+        return
+
     if detected_lang != "en":
         st.error("⚠️ Only English language is supported.")
     else:

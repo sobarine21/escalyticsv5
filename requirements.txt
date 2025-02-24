@@ -1,1 +1,8 @@
 streamlit
+google.generativeai
+langdetect
+textblob
+fpdf
+docx2txt
+PyPDF2
+cryptography

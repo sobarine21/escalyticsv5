@@ -14,9 +14,6 @@ from cryptography.fernet import Fernet
 import email
 from email import policy
 from email.parser import BytesParser
-from queue import Queue
-import threading
-import time
 
 # Configure API Key securely from Streamlit's secrets
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
@@ -200,201 +197,183 @@ def analyze_attachment(file):
     except Exception as e:
         return f"Error analyzing attachment: {e}"
 
-# Queue and ETA System
-request_queue = Queue()
-processing_time_per_request = 30  # Average processing time in seconds
+# Process Email and Uploaded File When Button Clicked
+if (email_content or uploaded_file) and st.button("🔍 Generate Insights"):
+    try:
+        if uploaded_file and uploaded_file.type == "message/rfc822":
+            msg = BytesParser(policy=policy.default).parsebytes(uploaded_file.getvalue())
+            email_content = msg.get_body(preferencelist=('plain')).get_content()
 
-def process_queue():
-    while True:
-        if not request_queue.empty():
-            email_content, uploaded_file, scenario = request_queue.get()
-            process_email(email_content, uploaded_file, scenario)
-            request_queue.task_done()
-        time.sleep(1)
+        detected_lang = detect(email_content)
+        if detected_lang != "en":
+            st.error("⚠️ Only English language is supported.")
+        else:
+            with st.spinner("⚡ Processing email insights..."):
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    # AI-Powered Analysis (executing based on feature flags)
+                    future_summary = executor.submit(get_ai_response, "Summarize this email concisely:\n\n", email_content) if features["highlights"] else None
+                    future_response = executor.submit(get_ai_response, "Generate a professional response to this email:\n\n", email_content) if features["response"] else None
+                    future_highlights = executor.submit(get_ai_response, "Highlight key points:\n\n", email_content) if features["highlights"] else None
+                    future_tone = executor.submit(get_ai_response, "Detect the tone of this email:\n\n", email_content) if features["tone"] else None
+                    future_tasks = executor.submit(get_ai_response, "List actionable tasks:\n\n", email_content) if features["task_extraction"] else None
+                    future_subject = executor.submit(get_ai_response, "Suggest a professional subject line:\n\n", email_content) if features["subject_recommendation"] else None
+                    future_clarity = executor.submit(get_ai_response, "Rate the clarity of this email:\n\n", email_content) if features["clarity"] else None
+                    future_complexity_reduction = executor.submit(get_ai_response, "Explain this email in the simplest way possible:\n\n", email_content) if features["complexity_reduction"] else None
+                    
+                    # Scenario-Based Response
+                    scenario_prompt = f"Generate a response for a {selected_scenario.lower()}:\n\n"
+                    future_scenario_response = executor.submit(get_ai_response, scenario_prompt, email_content) if features["scenario_responses"] else None
 
-def process_email(email_content, uploaded_file, selected_scenario):
-    detected_lang = detect(email_content)
-    if detected_lang != "en":
-        st.error("⚠️ Only English language is supported.")
-    else:
-        with st.spinner("⚡ Processing email insights..."):
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                # AI-Powered Analysis (executing based on feature flags)
-                future_summary = executor.submit(get_ai_response, "Summarize this email concisely:\n\n", email_content) if features["highlights"] else None
-                future_response = executor.submit(get_ai_response, "Generate a professional response to this email:\n\n", email_content) if features["response"] else None
-                future_highlights = executor.submit(get_ai_response, "Highlight key points:\n\n", email_content) if features["highlights"] else None
-                future_tone = executor.submit(get_ai_response, "Detect the tone of this email:\n\n", email_content) if features["tone"] else None
-                future_tasks = executor.submit(get_ai_response, "List actionable tasks:\n\n", email_content) if features["task_extraction"] else None
-                future_subject = executor.submit(get_ai_response, "Suggest a professional subject line:\n\n", email_content) if features["subject_recommendation"] else None
-                future_clarity = executor.submit(get_ai_response, "Rate the clarity of this email:\n\n", email_content) if features["clarity"] else None
-                future_complexity_reduction = executor.submit(get_ai_response, "Explain this email in the simplest way possible:\n\n", email_content) if features["complexity_reduction"] else None
-                
-                # Scenario-Based Response
-                scenario_prompt = f"Generate a response for a {selected_scenario.lower()}:\n\n"
-                future_scenario_response = executor.submit(get_ai_response, scenario_prompt, email_content) if features["scenario_responses"] else None
+                    # Attachment Analysis
+                    attachment_text = analyze_attachment(uploaded_file) if uploaded_file and features["attachment_analysis"] else None
+                    future_attachment_analysis = executor.submit(get_ai_response, "Analyze this attachment content:\n\n", attachment_text) if attachment_text else None
 
-                # Attachment Analysis
-                attachment_text = analyze_attachment(uploaded_file) if uploaded_file and features["attachment_analysis"] else None
-                future_attachment_analysis = executor.submit(get_ai_response, "Analyze this attachment content:\n\n", attachment_text) if attachment_text else None
+                    # Attachment Summarization
+                    future_attachment_summarization = executor.submit(get_ai_response, "Summarize this attachment content:\n\n", attachment_text) if attachment_text and features["attachment_summarization"] else None
 
-                # Attachment Summarization
-                future_attachment_summarization = executor.submit(get_ai_response, "Summarize this attachment content:\n\n", attachment_text) if attachment_text and features["attachment_summarization"] else None
+                    # Phishing Link Detection
+                    phishing_links = analyze_phishing_links(email_content) if features["phishing_detection"] else []
 
-                # Phishing Link Detection
-                phishing_links = analyze_phishing_links(email_content) if features["phishing_detection"] else []
+                    # Sensitive Information Detection
+                    sensitive_info = detect_sensitive_information(email_content) if features["sensitive_info_detection"] else {}
 
-                # Sensitive Information Detection
-                sensitive_info = detect_sensitive_information(email_content) if features["sensitive_info_detection"] else {}
+                    # Confidentiality Rating
+                    confidentiality = confidentiality_rating(email_content) if features["confidentiality_rating"] else 0
+
+                    # Bias Detection
+                    future_bias_detection = executor.submit(get_ai_response, "Identify potential biases in this email:\n\n", email_content) if features["bias_detection"] else None
+
+                    # Conflict Detection
+                    future_conflict_detection = executor.submit(get_ai_response, "Detect conflicts in this email thread:\n\n", email_content) if features["conflict_detection"] else None
+
+                    # Argument Mining
+                    future_argument_mining = executor.submit(get_ai_response, "Analyze the arguments presented in this email:\n\n", email_content) if features["argument_mining"] else None
+
+                    # Extract Results
+                    summary = future_summary.result() if future_summary else None
+                    response = future_response.result() if future_response else None
+                    highlights = future_highlights.result() if future_highlights else None
+                    tone = future_tone.result() if future_tone else None
+                    tasks = future_tasks.result() if future_tasks else None
+                    subject_recommendation = future_subject.result() if future_subject else None
+                    clarity_score = future_clarity.result() if future_clarity else None
+                    readability_score = get_readability(email_content)
+                    complexity_reduction = future_complexity_reduction.result() if future_complexity_reduction else None
+                    scenario_response = future_scenario_response.result() if future_scenario_response else None
+                    attachment_analysis = future_attachment_analysis.result() if future_attachment_analysis else None
+                    attachment_summarization = future_attachment_summarization.result() if future_attachment_summarization else None
+                    bias_detection = future_bias_detection.result() if future_bias_detection else None
+                    conflict_detection = future_conflict_detection.result() if future_conflict_detection else None
+                    argument_mining = future_argument_mining.result() if future_argument_mining else None
+
+                # Display Results Based on Enabled Features
+                if summary:
+                    st.subheader("📌 Email Summary")
+                    st.write(summary)
+
+                if response:
+                    st.subheader("✉️ Suggested Response")
+                    st.write(response)
+
+                if highlights:
+                    st.subheader("🔑 Key Highlights")
+                    st.write(highlights)
+
+                if features["sentiment"]:
+                    st.subheader("💬 Sentiment Analysis")
+                    sentiment = get_sentiment(email_content)
+                    sentiment_label = "Positive" if sentiment > 0 else "Negative" if sentiment < 0 else "Neutral"
+                    st.write(f"**Sentiment:** {sentiment_label} (Polarity: {sentiment:.2f})")
+
+                if tone:
+                    st.subheader("🎭 Email Tone")
+                    st.write(tone)
+
+                if tasks:
+                    st.subheader("📝 Actionable Tasks")
+                    st.write(tasks)
+
+                if subject_recommendation:
+                    st.subheader("📬 Subject Line Recommendation")
+                    st.write(subject_recommendation)
+
+                if clarity_score:
+                    st.subheader("🔍 Email Clarity Score")
+                    st.write(clarity_score)
+
+                if complexity_reduction:
+                    st.subheader("🔽 Simplified Explanation")
+                    st.write(complexity_reduction)
+
+                if scenario_response:
+                    st.subheader("📜 Scenario-Based Suggested Response")
+                    st.write(f"**{selected_scenario}:**")
+                    st.write(scenario_response)
+                    
+                if attachment_analysis:
+                    st.subheader("📎 Attachment Analysis")
+                    st.write(attachment_analysis)
+
+                if attachment_summarization:
+                    st.subheader("📎 Attachment Summary")
+                    st.write(attachment_summarization)
+
+                # Phishing Links
+                if phishing_links:
+                    st.subheader("⚠️ Phishing Links Detected")
+                    st.write(phishing_links)
+
+                # Sensitive Information Detected
+                if sensitive_info:
+                    st.subheader("⚠️ Sensitive Information Detected")
+                    st.json(sensitive_info)
 
                 # Confidentiality Rating
-                confidentiality = confidentiality_rating(email_content) if features["confidentiality_rating"] else 0
+                if confidentiality:
+                    st.subheader("🔐 Confidentiality Rating")
+                    st.write(f"Confidentiality Rating: {confidentiality}/5")
 
                 # Bias Detection
-                future_bias_detection = executor.submit(get_ai_response, "Identify potential biases in this email:\n\n", email_content) if features["bias_detection"] else None
+                if bias_detection:
+                    st.subheader("⚖️ Bias Detection")
+                    st.write(bias_detection)
 
                 # Conflict Detection
-                future_conflict_detection = executor.submit(get_ai_response, "Detect conflicts in this email thread:\n\n", email_content) if features["conflict_detection"] else None
+                if conflict_detection:
+                    st.subheader("🚨 Conflict Detection")
+                    st.write(conflict_detection)
 
                 # Argument Mining
-                future_argument_mining = executor.submit(get_ai_response, "Analyze the arguments presented in this email:\n\n", email_content) if features["argument_mining"] else None
+                if argument_mining:
+                    st.subheader("💬 Argument Mining")
+                    st.write(argument_mining)
 
-                # Extract Results
-                summary = future_summary.result() if future_summary else None
-                response = future_response.result() if future_response else None
-                highlights = future_highlights.result() if future_highlights else None
-                tone = future_tone.result() if future_tone else None
-                tasks = future_tasks.result() if future_tasks else None
-                subject_recommendation = future_subject.result() if future_subject else None
-                clarity_score = future_clarity.result() if future_clarity else None
-                readability_score = get_readability(email_content)
-                complexity_reduction = future_complexity_reduction.result() if future_complexity_reduction else None
-                scenario_response = future_scenario_response.result() if future_scenario_response else None
-                attachment_analysis = future_attachment_analysis.result() if future_attachment_analysis else None
-                attachment_summarization = future_attachment_summarization.result() if future_attachment_summarization else None
-                bias_detection = future_bias_detection.result() if future_bias_detection else None
-                conflict_detection = future_conflict_detection.result() if future_conflict_detection else None
-                argument_mining = future_argument_mining.result() if future_argument_mining else None
+                # Export Options
+                if features["export"]:
+                    export_data = {
+                        "summary": summary,
+                        "response": response,
+                        "highlights": highlights,
+                        "clarity_score": clarity_score,
+                        "complexity_reduction": complexity_reduction,
+                        "scenario_response": scenario_response,
+                        "attachment_analysis": attachment_analysis,
+                        "attachment_summarization": attachment_summarization,
+                        "phishing_links": phishing_links,
+                        "sensitive_info": sensitive_info,
+                        "confidentiality": confidentiality,
+                        "bias_detection": bias_detection,
+                        "conflict_detection": conflict_detection,
+                        "argument_mining": argument_mining,
+                    }
+                    export_json = json.dumps(export_data, indent=4)
+                    st.download_button("📥 Download JSON", data=export_json, file_name="analysis.json", mime="application/json")
 
-            # Display Results Based on Enabled Features
-            if summary:
-                st.subheader("📌 Email Summary")
-                st.write(summary)
+                    pdf_data = export_pdf(json.dumps(export_data, indent=4))
+                    st.download_button("📥 Download PDF", data=pdf_data, file_name="analysis.pdf", mime="application/pdf")
 
-            if response:
-                st.subheader("✉️ Suggested Response")
-                st.write(response)
+    except Exception as e:
+        st.error(f"❌ Error: {e}")
 
-            if highlights:
-                st.subheader("🔑 Key Highlights")
-                st.write(highlights)
-
-            if features["sentiment"]:
-                st.subheader("💬 Sentiment Analysis")
-                sentiment = get_sentiment(email_content)
-                sentiment_label = "Positive" if sentiment > 0 else "Negative" if sentiment < 0 else "Neutral"
-                st.write(f"**Sentiment:** {sentiment_label} (Polarity: {sentiment:.2f})")
-
-            if tone:
-                st.subheader("🎭 Email Tone")
-                st.write(tone)
-
-            if tasks:
-                st.subheader("📝 Actionable Tasks")
-                st.write(tasks)
-
-            if subject_recommendation:
-                st.subheader("📬 Subject Line Recommendation")
-                st.write(subject_recommendation)
-
-            if clarity_score:
-                st.subheader("🔍 Email Clarity Score")
-                st.write(clarity_score)
-
-            if complexity_reduction:
-                st.subheader("🔽 Simplified Explanation")
-                st.write(complexity_reduction)
-
-            if scenario_response:
-                st.subheader("📜 Scenario-Based Suggested Response")
-                st.write(f"**{selected_scenario}:**")
-                st.write(scenario_response)
-                
-            if attachment_analysis:
-                st.subheader("📎 Attachment Analysis")
-                st.write(attachment_analysis)
-
-            if attachment_summarization:
-                st.subheader("📎 Attachment Summary")
-                st.write(attachment_summarization)
-
-            # Phishing Links
-            if phishing_links:
-                st.subheader("⚠️ Phishing Links Detected")
-                st.write(phishing_links)
-
-            # Sensitive Information Detected
-            if sensitive_info:
-                st.subheader("⚠️ Sensitive Information Detected")
-                st.json(sensitive_info)
-
-            # Confidentiality Rating
-            if confidentiality:
-                st.subheader("🔐 Confidentiality Rating")
-                st.write(f"Confidentiality Rating: {confidentiality}/5")
-
-            # Bias Detection
-            if bias_detection:
-                st.subheader("⚖️ Bias Detection")
-                st.write(bias_detection)
-
-            # Conflict Detection
-            if conflict_detection:
-                st.subheader("🚨 Conflict Detection")
-                st.write(conflict_detection)
-
-            # Argument Mining
-            if argument_mining:
-                st.subheader("💬 Argument Mining")
-                st.write(argument_mining)
-
-            # Export Options
-            if features["export"]:
-                export_data = {
-                    "summary": summary,
-                    "response": response,
-                    "highlights": highlights,
-                    "clarity_score": clarity_score,
-                    "complexity_reduction": complexity_reduction,
-                    "scenario_response": scenario_response,
-                    "attachment_analysis": attachment_analysis,
-                    "attachment_summarization": attachment_summarization,
-                    "phishing_links": phishing_links,
-                    "sensitive_info": sensitive_info,
-                    "confidentiality": confidentiality,
-                    "bias_detection": bias_detection,
-                    "conflict_detection": conflict_detection,
-                    "argument_mining": argument_mining,
-                }
-                export_json = json.dumps(export_data, indent=4)
-                st.download_button("📥 Download JSON", data=export_json, file_name="analysis.json", mime="application/json")
-
-                pdf_data = export_pdf(json.dumps(export_data, indent=4))
-                st.download_button("📥 Download PDF", data=pdf_data, file_name="analysis.pdf", mime="application/pdf")
-
-# Start processing queue in a separate thread
-threading.Thread(target=process_queue, daemon=True).start()
-
-# Add request to queue when button clicked
-if (email_content or uploaded_file) and st.button("🔍 Generate Insights"):
-    request_queue.put((email_content, uploaded_file, selected_scenario))
-    queue_size = request_queue.qsize()
-    if queue_size > 1:
-        eta = (queue_size - 1) * processing_time_per_request
-        st.info(f"⏳ Your request is in the queue. Estimated wait time: {eta} seconds.")
-    else:
-        st.info("⚡ Your request is being processed.")
 else:
     st.info("✏️ Paste email content and click 'Generate Insights' to begin.")
-````
-
-In this updated version, the ETA is only shown if there are other requests in the queue. If the queue size is 1 (meaning there are no other requests), it informs the user that their request is being processed immediately.

@@ -152,7 +152,7 @@ def analyze_phishing_links(email_content):
     urls = re.findall(r'(https?://\S+)', email_content)
     for url in urls:
         for keyword in phishing_keywords:
-            if keyword.lower() in url.lower()):
+            if keyword.lower() in url.lower():
                 phishing_links.append(url)
     return phishing_links
 

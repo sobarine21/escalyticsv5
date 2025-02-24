@@ -247,10 +247,6 @@ if (email_content or uploaded_file) and st.button("🔍 Generate Insights"):
                     # Conflict Detection
                     future_conflict_detection = executor.submit(get_ai_response, "Detect conflicts in this email thread:\n\n", email_content) if features["conflict_detection"] else None
 
-                    # Question Answering
-                    question = st.text_input("Ask a question about the email content:")
-                    future_question_answering = executor.submit(get_ai_response, f"Answer this question based on the email content:\n\n{email_content}\n\nQuestion: {question}\nAnswer:", email_content) if question and features["question_answering"] else None
-
                     # Argument Mining
                     future_argument_mining = executor.submit(get_ai_response, "Analyze the arguments presented in this email:\n\n", email_content) if features["argument_mining"] else None
 
@@ -269,7 +265,6 @@ if (email_content or uploaded_file) and st.button("🔍 Generate Insights"):
                     attachment_summarization = future_attachment_summarization.result() if future_attachment_summarization else None
                     bias_detection = future_bias_detection.result() if future_bias_detection else None
                     conflict_detection = future_conflict_detection.result() if future_conflict_detection else None
-                    question_answering = future_question_answering.result() if future_question_answering else None
                     argument_mining = future_argument_mining.result() if future_argument_mining else None
 
                 # Display Results Based on Enabled Features
@@ -349,11 +344,6 @@ if (email_content or uploaded_file) and st.button("🔍 Generate Insights"):
                     st.subheader("🚨 Conflict Detection")
                     st.write(conflict_detection)
 
-                # Question Answering
-                if question_answering:
-                    st.subheader("❓ Question Answering")
-                    st.write(question_answering)
-
                 # Argument Mining
                 if argument_mining:
                     st.subheader("💬 Argument Mining")
@@ -375,7 +365,6 @@ if (email_content or uploaded_file) and st.button("🔍 Generate Insights"):
                         "confidentiality": confidentiality,
                         "bias_detection": bias_detection,
                         "conflict_detection": conflict_detection,
-                        "question_answering": question_answering,
                         "argument_mining": argument_mining,
                     }
                     export_json = json.dumps(export_data, indent=4)
@@ -383,6 +372,15 @@ if (email_content or uploaded_file) and st.button("🔍 Generate Insights"):
 
                     pdf_data = export_pdf(json.dumps(export_data, indent=4))
                     st.download_button("📥 Download PDF", data=pdf_data, file_name="analysis.pdf", mime="application/pdf")
+
+                # Enable Question Answering after Initial Insights
+                if features["question_answering"]:
+                    st.subheader("❓ Ask a Question about the Email Content")
+                    question = st.text_input("Type your question here:")
+                    if question:
+                        with st.spinner("🔍 Finding the answer..."):
+                            answer = get_ai_response(f"Answer this question based on the email content:\n\n{email_content}\n\nQuestion: {question}\nAnswer:", email_content)
+                            st.write(answer)
 
     except Exception as e:
         st.error(f"❌ Error: {e}")

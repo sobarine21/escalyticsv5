@@ -244,6 +244,9 @@ if (email_content or uploaded_file) and st.button("🔍 Generate Insights"):
                     complexity_reduction = future_complexity_reduction.result() if future_complexity_reduction else None
                     scenario_response = future_scenario_response.result() if future_scenario_response else None
                     attachment_analysis = future_attachment_analysis.result() if future_attachment_analysis else None
+                    bias_detection = future_bias_detection.result() if future_bias_detection else None
+                    conflict_detection = future_conflict_detection.result() if future_conflict_detection else None
+                    argument_mining = future_argument_mining.result() if future_argument_mining else None
 
                 if summary:
                     st.subheader("📌 Email Summary")

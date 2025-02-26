@@ -61,7 +61,8 @@ for feature in features:
 email_content = st.text_area("📩 Paste your email content here:", height=200)
 MAX_EMAIL_LENGTH = 2000
 
-uploaded_file = st.file_uploader("📎 Upload attachment for analysis (optional):", type=["txt", "pdf", "docx", "eml"])
+uploaded_file = st.file_uploader("📎 Upload attachment for analysis (optional):", type=["txt", "pdf", "docx", "eml", "msg"])
+uploaded_email_file = st.file_uploader("📧 Upload email for thread analysis:", type=["eml", "msg"])
 
 scenario_options = [
     "Customer Complaint",
@@ -181,7 +182,7 @@ def analyze_attachment(file):
             return text
         elif file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
             return docx2txt.process(file)
-        elif file.type == "message/rfc822":
+        elif file.type in ["message/rfc822", "application/vnd.ms-outlook"]:
             msg = BytesParser(policy=policy.default).parsebytes(file.getvalue())
             return msg.get_body(preferencelist=('plain')).get_content()
         else:
@@ -195,12 +196,12 @@ def countdown_timer(duration):
             st.write(f"⏳ {i} seconds remaining...")
             time.sleep(1)
 
-if (email_content or uploaded_file) and st.button("🔍 Generate Insights"):
+if (email_content or uploaded_file or uploaded_email_file) and st.button("🔍 Generate Insights"):
     try:
         countdown_timer(5)
 
-        if uploaded_file and uploaded_file.type == "message/rfc822":
-            msg = BytesParser(policy=policy.default).parsebytes(uploaded_file.getvalue())
+        if uploaded_email_file:
+            msg = BytesParser(policy=policy.default).parsebytes(uploaded_email_file.getvalue())
             email_content = msg.get_body(preferencelist=('plain')).get_content()
 
         detected_lang = detect(email_content)
